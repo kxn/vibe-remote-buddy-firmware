@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "objectKeys": [
+    "report_map",
+    "length",
+    "crc32c",
+    "sha256",
+    "hex",
+    "pnp",
+    "source",
+    "vendor",
+    "product",
+    "version",
+    "services",
+    "reports",
+    "id",
+    "type",
+    "name",
+    "prefix",
+    "company"
+  ]
+}

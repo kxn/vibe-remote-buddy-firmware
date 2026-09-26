@@ -1,0 +1,291 @@
+{
+  "schema": 1,
+  "id": "xiaomi.rc003",
+  "title": "小米 Remote 2 Pro",
+  "revision": 2,
+  "family": 1,
+  "matches": [
+    {
+      "name": "小米蓝牙语音遥控器"
+    },
+    {
+      "name": "RC003"
+    },
+    {
+      "prefix": "RC003 "
+    }
+  ],
+  "keys": [
+    {
+      "id": 1,
+      "label": "电源",
+      "default": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": 3,
+      "label": "上",
+      "default": [
+        1,
+        0,
+        82
+      ]
+    },
+    {
+      "id": 4,
+      "label": "下",
+      "default": [
+        1,
+        0,
+        81
+      ]
+    },
+    {
+      "id": 5,
+      "label": "左",
+      "default": [
+        1,
+        0,
+        80
+      ]
+    },
+    {
+      "id": 6,
+      "label": "右",
+      "default": [
+        1,
+        0,
+        79
+      ]
+    },
+    {
+      "id": 7,
+      "label": "确认",
+      "default": [
+        1,
+        0,
+        40
+      ]
+    },
+    {
+      "id": 8,
+      "label": "返回",
+      "default": [
+        1,
+        0,
+        42
+      ]
+    },
+    {
+      "id": 9,
+      "label": "主页",
+      "default": [
+        4,
+        0,
+        65534
+      ]
+    },
+    {
+      "id": 10,
+      "label": "菜单",
+      "default": [
+        4,
+        0,
+        65535
+      ]
+    },
+    {
+      "id": 11,
+      "label": "电视",
+      "default": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": 12,
+      "label": "音量 +",
+      "default": [
+        2,
+        0,
+        0
+      ]
+    },
+    {
+      "id": 13,
+      "label": "音量 −",
+      "default": [
+        2,
+        0,
+        1
+      ]
+    },
+    {
+      "id": 2,
+      "label": "语音",
+      "default": [
+        5,
+        0,
+        1
+      ]
+    }
+  ],
+  "raw": [],
+  "map_crc": 0,
+  "layout": {
+    "width": 176,
+    "height": 600,
+    "artwork": "artwork.svg",
+    "buttons": [
+      {
+        "key": 1,
+        "x": 25,
+        "y": 6,
+        "width": 23,
+        "height": 6.75,
+        "radius": 50,
+        "fill": "transparent",
+        "color": "#4c5457",
+        "border": "#6e777b"
+      },
+      {
+        "key": 2,
+        "x": 75,
+        "y": 6,
+        "width": 23,
+        "height": 6.75,
+        "radius": 50,
+        "fill": "transparent",
+        "color": "#4c5457",
+        "border": "#6e777b"
+      },
+      {
+        "key": 3,
+        "x": 50,
+        "y": 18,
+        "width": 27,
+        "height": 7.9,
+        "radius": 50,
+        "fill": "transparent",
+        "color": "#d5dbdc",
+        "border": "transparent"
+      },
+      {
+        "key": 5,
+        "x": 22,
+        "y": 26,
+        "width": 27,
+        "height": 7.9,
+        "radius": 50,
+        "fill": "transparent",
+        "color": "#d5dbdc",
+        "border": "transparent"
+      },
+      {
+        "key": 7,
+        "x": 50,
+        "y": 26,
+        "width": 43,
+        "height": 12.6,
+        "radius": 50,
+        "fill": "#22282a",
+        "color": "#d5dbdc",
+        "border": "#101618"
+      },
+      {
+        "key": 6,
+        "x": 78,
+        "y": 26,
+        "width": 27,
+        "height": 7.9,
+        "radius": 50,
+        "fill": "transparent",
+        "color": "#d5dbdc",
+        "border": "transparent"
+      },
+      {
+        "key": 4,
+        "x": 50,
+        "y": 34,
+        "width": 27,
+        "height": 7.9,
+        "radius": 50,
+        "fill": "transparent",
+        "color": "#d5dbdc",
+        "border": "transparent"
+      },
+      {
+        "key": 8,
+        "x": 25,
+        "y": 43,
+        "width": 30,
+        "height": 8.8,
+        "radius": 50,
+        "fill": "#22282a",
+        "color": "#d5dbdc",
+        "border": "transparent"
+      },
+      {
+        "key": 12,
+        "x": 75,
+        "y": 43,
+        "width": 30,
+        "height": 8.8,
+        "radius": 50,
+        "fill": "transparent",
+        "color": "#d5dbdc",
+        "border": "transparent"
+      },
+      {
+        "key": 9,
+        "x": 25,
+        "y": 53,
+        "width": 30,
+        "height": 8.8,
+        "radius": 50,
+        "fill": "#22282a",
+        "color": "#d5dbdc",
+        "border": "transparent"
+      },
+      {
+        "key": 13,
+        "x": 75,
+        "y": 53,
+        "width": 30,
+        "height": 8.8,
+        "radius": 50,
+        "fill": "transparent",
+        "color": "#d5dbdc",
+        "border": "transparent"
+      },
+      {
+        "key": 10,
+        "x": 25,
+        "y": 63,
+        "width": 30,
+        "height": 8.8,
+        "radius": 50,
+        "fill": "#22282a",
+        "color": "#d5dbdc",
+        "border": "transparent"
+      },
+      {
+        "key": 11,
+        "x": 75,
+        "y": 63,
+        "width": 30,
+        "height": 8.8,
+        "radius": 50,
+        "fill": "#22282a",
+        "color": "#d5dbdc",
+        "border": "transparent"
+      }
+    ],
+    "thumbnailSymbols": true,
+    "angle": -12
+  }
+}

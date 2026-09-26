@@ -1,0 +1,1147 @@
+{
+  "protocol": "RBP",
+  "version": [
+    3,
+    0
+  ],
+  "byte_order": "little",
+  "header_format": "<2sBBBBHIIIHHHHI",
+  "header_bytes": 32,
+  "magic_hex": "5242",
+  "max_payload": 512,
+  "max_raw": 548,
+  "max_cobs_nonzero": 551,
+  "delimiter_hex": "00",
+  "crc": "CRC32C reflected 0x82F63B78 init/final 0xffffffff",
+  "tlv": {
+    "header_format": "<BBH",
+    "unknown_tags": "skip bounded value",
+    "duplicate_tags": "reject",
+    "types": {
+      "1": "u8",
+      "2": "u16",
+      "3": "u32",
+      "4": "u64",
+      "5": "bool",
+      "6": "UTF-8",
+      "7": "bytes"
+    },
+    "max_text": 96,
+    "max_bytes": 480
+  },
+  "binary": {
+    "keys_state": {
+      "format": "<IQQBBH",
+      "fields": [
+        "input_seq",
+        "captured_us",
+        "pressed_bits",
+        "kind",
+        "reason",
+        "reserved"
+      ],
+      "bytes": 24
+    },
+    "voice_data": {
+      "format": "<IIIIIIQII",
+      "fields": [
+        "stream_id",
+        "frame_seq",
+        "epoch",
+        "unit_seq",
+        "unit_size",
+        "fragment_offset",
+        "first_sample_index",
+        "unit_sample_count",
+        "reserved"
+      ],
+      "header_bytes": 40,
+      "tail": "1..472 encoded bytes",
+      "max_unit_bytes": 65536
+    },
+    "candidates": {
+      "prefix": "count:u8",
+      "entry": "candidate_id:u32,support:u8,signal:u8,name_length:u8,name:UTF-8",
+      "max_count": 8
+    },
+    "keys": {
+      "prefix": "count:u8",
+      "entry": "slot:u8,key_id:u16,name_length:u8,name:UTF-8",
+      "max_count": 64
+    }
+  },
+  "statuses": {
+    "0": "OK",
+    "1": "ACCEPTED",
+    "2": "INVALID_ARGUMENT",
+    "3": "UNSUPPORTED",
+    "4": "BAD_STATE",
+    "5": "BUSY",
+    "6": "NOT_FOUND",
+    "7": "TIMEOUT",
+    "8": "PAIRING_FAILED",
+    "9": "LINK_LOST",
+    "10": "STORAGE_FAILED",
+    "11": "RESOURCE_LIMIT",
+    "12": "CANCELLED",
+    "13": "DUPLICATE",
+    "14": "SESSION_MISMATCH",
+    "15": "DEVICE_ERROR",
+    "16": "VOICE_UNAVAILABLE",
+    "17": "VERSION_MISMATCH"
+  },
+  "error_fields": {
+    "1": {
+      "name": "message",
+      "type": 6,
+      "required": false
+    },
+    "2": {
+      "name": "uncertain",
+      "type": 5,
+      "required": false
+    },
+    "3": {
+      "name": "echo_nonce",
+      "type": 7,
+      "required": false
+    }
+  },
+  "messages": [
+    {
+      "opcode": 1,
+      "name": "HELLO",
+      "request": {
+        "1": {
+          "name": "nonce",
+          "type": 7,
+          "required": true
+        }
+      },
+      "response": {
+        "1": {
+          "name": "echo_nonce",
+          "type": 7,
+          "required": true
+        },
+        "2": {
+          "name": "bridge_uid",
+          "type": 7,
+          "required": true
+        },
+        "3": {
+          "name": "firmware",
+          "type": 6,
+          "required": true
+        },
+        "4": {
+          "name": "max_keys",
+          "type": 1,
+          "required": true
+        },
+        "5": {
+          "name": "max_payload",
+          "type": 2,
+          "required": true
+        },
+        "6": {
+          "name": "features",
+          "type": 3,
+          "required": true
+        }
+      },
+      "connection": "zero",
+      "success_status": 0,
+      "response_binary": null
+    },
+    {
+      "opcode": 2,
+      "name": "PING",
+      "request": {
+        "1": {
+          "name": "cookie",
+          "type": 3,
+          "required": true
+        }
+      },
+      "response": {
+        "1": {
+          "name": "cookie",
+          "type": 3,
+          "required": true
+        },
+        "2": {
+          "name": "board_time_us",
+          "type": 4,
+          "required": true
+        }
+      },
+      "connection": "zero",
+      "success_status": 0,
+      "response_binary": null
+    },
+    {
+      "opcode": 3,
+      "name": "GET_DEVICE",
+      "request": {},
+      "response": {
+        "1": {
+          "name": "connection_id",
+          "type": 3,
+          "required": true
+        },
+        "2": {
+          "name": "peer_id",
+          "type": 3,
+          "required": true
+        },
+        "3": {
+          "name": "state",
+          "type": 1,
+          "required": true
+        },
+        "4": {
+          "name": "model_id",
+          "type": 6,
+          "required": true
+        },
+        "5": {
+          "name": "name",
+          "type": 6,
+          "required": true
+        },
+        "6": {
+          "name": "catalog_revision",
+          "type": 3,
+          "required": true
+        },
+        "7": {
+          "name": "key_count",
+          "type": 1,
+          "required": true
+        },
+        "8": {
+          "name": "voice_state",
+          "type": 1,
+          "required": true
+        },
+        "9": {
+          "name": "sample_rate",
+          "type": 3,
+          "required": true
+        },
+        "10": {
+          "name": "battery",
+          "type": 1,
+          "required": true
+        },
+        "11": {
+          "name": "charging",
+          "type": 1,
+          "required": true
+        },
+        "12": {
+          "name": "voice_enabled",
+          "type": 5,
+          "required": true
+        },
+        "13": {
+          "name": "delivering",
+          "type": 5,
+          "required": true
+        },
+        "14": {
+          "name": "stream_id",
+          "type": 3,
+          "required": true
+        },
+        "15": {
+          "name": "waiting_idle",
+          "type": 5,
+          "required": true
+        },
+        "16": {
+          "name": "reason",
+          "type": 2,
+          "required": true
+        },
+        "17": {
+          "name": "message",
+          "type": 6,
+          "required": false
+        },
+        "18": {
+          "name": "voice_interaction",
+          "type": 1,
+          "required": true
+        },
+        "19": {
+          "name": "max_capture_ms",
+          "type": 3,
+          "required": true
+        }
+      },
+      "connection": "zero",
+      "success_status": 0,
+      "response_binary": null
+    },
+    {
+      "opcode": 4,
+      "name": "GET_PEER",
+      "request": {},
+      "response": {
+        "1": {
+          "name": "peer_id",
+          "type": 3,
+          "required": true
+        },
+        "2": {
+          "name": "name",
+          "type": 6,
+          "required": true
+        },
+        "3": {
+          "name": "auto_reconnect",
+          "type": 5,
+          "required": true
+        }
+      },
+      "connection": "zero",
+      "success_status": 0,
+      "response_binary": null
+    },
+    {
+      "opcode": 5,
+      "name": "GET_OPERATION",
+      "request": {
+        "1": {
+          "name": "operation_id",
+          "type": 3,
+          "required": true
+        }
+      },
+      "response": {
+        "1": {
+          "name": "operation_id",
+          "type": 3,
+          "required": true
+        },
+        "2": {
+          "name": "state",
+          "type": 1,
+          "required": true
+        },
+        "3": {
+          "name": "result",
+          "type": 2,
+          "required": true
+        },
+        "4": {
+          "name": "peer_id",
+          "type": 3,
+          "required": false
+        },
+        "5": {
+          "name": "connection_id",
+          "type": 3,
+          "required": false
+        },
+        "6": {
+          "name": "uncertain",
+          "type": 5,
+          "required": false
+        }
+      },
+      "connection": "zero",
+      "success_status": 0,
+      "response_binary": null
+    },
+    {
+      "opcode": 6,
+      "name": "GET_STATS",
+      "request": {},
+      "response": {
+        "1": {
+          "name": "protocol_errors",
+          "type": 3,
+          "required": true
+        },
+        "2": {
+          "name": "input_resets",
+          "type": 3,
+          "required": true
+        },
+        "3": {
+          "name": "voice_overruns",
+          "type": 3,
+          "required": true
+        },
+        "4": {
+          "name": "voice_errors",
+          "type": 3,
+          "required": true
+        },
+        "5": {
+          "name": "reset_reason",
+          "type": 2,
+          "required": true
+        },
+        "6": {
+          "name": "fault_sequence",
+          "type": 3,
+          "required": false
+        },
+        "7": {
+          "name": "fault_records",
+          "type": 7,
+          "required": false
+        },
+        "8": {
+          "name": "fault_evictions",
+          "type": 3,
+          "required": false
+        },
+        "9": {
+          "name": "standalone_audio",
+          "type": 7,
+          "required": false
+        },
+        "10": {
+          "name": "standalone_usb",
+          "type": 7,
+          "required": false
+        }
+      },
+      "connection": "zero",
+      "success_status": 0,
+      "response_binary": null
+    },
+    {
+      "opcode": 7,
+      "name": "GOODBYE",
+      "request": {},
+      "response": {},
+      "connection": "zero",
+      "success_status": 0,
+      "response_binary": null
+    },
+    {
+      "opcode": 256,
+      "name": "FIND_START",
+      "request": {
+        "1": {
+          "name": "duration_ms",
+          "type": 2,
+          "required": true
+        }
+      },
+      "response": {
+        "1": {
+          "name": "search_id",
+          "type": 3,
+          "required": true
+        }
+      },
+      "connection": "zero",
+      "success_status": 0,
+      "response_binary": null
+    },
+    {
+      "opcode": 257,
+      "name": "FIND_LIST",
+      "request": {
+        "1": {
+          "name": "search_id",
+          "type": 3,
+          "required": true
+        },
+        "2": {
+          "name": "cursor",
+          "type": 1,
+          "required": true
+        }
+      },
+      "response": {
+        "1": {
+          "name": "next_cursor",
+          "type": 1,
+          "required": true
+        },
+        "2": {
+          "name": "entries",
+          "type": 7,
+          "required": true
+        }
+      },
+      "connection": "zero",
+      "success_status": 0,
+      "response_binary": null
+    },
+    {
+      "opcode": 258,
+      "name": "FIND_STOP",
+      "request": {
+        "1": {
+          "name": "search_id",
+          "type": 3,
+          "required": true
+        }
+      },
+      "response": {},
+      "connection": "zero",
+      "success_status": 0,
+      "response_binary": null
+    },
+    {
+      "opcode": 272,
+      "name": "PAIR_BEGIN",
+      "request": {
+        "1": {
+          "name": "search_id",
+          "type": 3,
+          "required": true
+        },
+        "2": {
+          "name": "candidate_id",
+          "type": 3,
+          "required": true
+        }
+      },
+      "response": {
+        "1": {
+          "name": "operation_id",
+          "type": 3,
+          "required": true
+        }
+      },
+      "connection": "zero",
+      "success_status": 1,
+      "response_binary": null
+    },
+    {
+      "opcode": 273,
+      "name": "PAIR_REPLY",
+      "request": {
+        "1": {
+          "name": "operation_id",
+          "type": 3,
+          "required": true
+        },
+        "2": {
+          "name": "prompt_id",
+          "type": 3,
+          "required": true
+        },
+        "3": {
+          "name": "accept",
+          "type": 5,
+          "required": true
+        },
+        "4": {
+          "name": "passkey",
+          "type": 3,
+          "required": false
+        }
+      },
+      "response": {},
+      "connection": "zero",
+      "success_status": 0,
+      "response_binary": null
+    },
+    {
+      "opcode": 274,
+      "name": "PAIR_CANCEL",
+      "request": {
+        "1": {
+          "name": "operation_id",
+          "type": 3,
+          "required": true
+        }
+      },
+      "response": {},
+      "connection": "zero",
+      "success_status": 0,
+      "response_binary": null
+    },
+    {
+      "opcode": 275,
+      "name": "FORGET_PEER",
+      "request": {
+        "1": {
+          "name": "peer_id",
+          "type": 3,
+          "required": true
+        }
+      },
+      "response": {
+        "1": {
+          "name": "operation_id",
+          "type": 3,
+          "required": true
+        }
+      },
+      "connection": "zero",
+      "success_status": 1,
+      "response_binary": null
+    },
+    {
+      "opcode": 276,
+      "name": "SET_RECONNECT",
+      "request": {
+        "1": {
+          "name": "peer_id",
+          "type": 3,
+          "required": true
+        },
+        "2": {
+          "name": "enabled",
+          "type": 5,
+          "required": true
+        }
+      },
+      "response": {},
+      "connection": "zero",
+      "success_status": 0,
+      "response_binary": null
+    },
+    {
+      "opcode": 277,
+      "name": "CONNECT_PEER",
+      "request": {
+        "1": {
+          "name": "peer_id",
+          "type": 3,
+          "required": true
+        }
+      },
+      "response": {},
+      "connection": "zero",
+      "success_status": 0,
+      "response_binary": null
+    },
+    {
+      "opcode": 278,
+      "name": "DISCONNECT",
+      "request": {},
+      "response": {},
+      "connection": "zero",
+      "success_status": 0,
+      "response_binary": null
+    },
+    {
+      "opcode": 512,
+      "name": "KEY_CATALOG",
+      "request": {
+        "1": {
+          "name": "cursor",
+          "type": 1,
+          "required": false
+        }
+      },
+      "response": {
+        "1": {
+          "name": "revision",
+          "type": 3,
+          "required": true
+        },
+        "2": {
+          "name": "next_cursor",
+          "type": 1,
+          "required": true
+        },
+        "3": {
+          "name": "entries",
+          "type": 7,
+          "required": true
+        }
+      },
+      "connection": "current",
+      "success_status": 0,
+      "response_binary": null
+    },
+    {
+      "opcode": 513,
+      "name": "KEYS_SNAPSHOT",
+      "request": {},
+      "response": {},
+      "connection": "current",
+      "success_status": 0,
+      "response_binary": "keys_state"
+    },
+    {
+      "opcode": 514,
+      "name": "EVENTS_ENABLE",
+      "request": {
+        "1": {
+          "name": "enabled",
+          "type": 5,
+          "required": true
+        }
+      },
+      "response": {},
+      "connection": "current",
+      "success_status": 0,
+      "response_binary": null
+    },
+    {
+      "opcode": 770,
+      "name": "GET_VOICE_CAPS",
+      "request": {},
+      "response": {
+        "1": {
+          "name": "codecs",
+          "type": 7,
+          "required": true
+        },
+        "2": {
+          "name": "max_unit_bytes",
+          "type": 3,
+          "required": true
+        },
+        "3": {
+          "name": "config_max_bytes",
+          "type": 2,
+          "required": true
+        }
+      },
+      "connection": "current",
+      "success_status": 0,
+      "response_binary": null
+    },
+    {
+      "opcode": 768,
+      "name": "VOICE_ENABLE",
+      "request": {
+        "1": {
+          "name": "enabled",
+          "type": 5,
+          "required": true
+        },
+        "2": {
+          "name": "accepted_codecs",
+          "type": 7,
+          "required": false
+        },
+        "3": {
+          "name": "max_unit_bytes",
+          "type": 3,
+          "required": false
+        }
+      },
+      "response": {
+        "1": {
+          "name": "enabled",
+          "type": 5,
+          "required": true
+        },
+        "2": {
+          "name": "waiting_idle",
+          "type": 5,
+          "required": true
+        }
+      },
+      "connection": "current",
+      "success_status": 0,
+      "response_binary": null
+    },
+    {
+      "opcode": 769,
+      "name": "VOICE_STOP",
+      "request": {
+        "1": {
+          "name": "stream_id",
+          "type": 3,
+          "required": true
+        }
+      },
+      "response": {},
+      "connection": "current",
+      "success_status": 0,
+      "response_binary": null
+    },
+    {
+      "opcode": 771,
+      "name": "VOICE_START",
+      "request": {},
+      "response": {},
+      "connection": "current",
+      "success_status": 0,
+      "response_binary": null
+    },
+    {
+      "opcode": 387,
+      "name": "DEVICE_STATE_EV",
+      "kind": 3,
+      "fields": {
+        "1": {
+          "name": "connection_id",
+          "type": 3,
+          "required": true
+        },
+        "2": {
+          "name": "peer_id",
+          "type": 3,
+          "required": true
+        },
+        "3": {
+          "name": "state",
+          "type": 1,
+          "required": true
+        },
+        "4": {
+          "name": "model_id",
+          "type": 6,
+          "required": true
+        },
+        "5": {
+          "name": "name",
+          "type": 6,
+          "required": true
+        },
+        "6": {
+          "name": "catalog_revision",
+          "type": 3,
+          "required": true
+        },
+        "7": {
+          "name": "key_count",
+          "type": 1,
+          "required": true
+        },
+        "8": {
+          "name": "voice_state",
+          "type": 1,
+          "required": true
+        },
+        "9": {
+          "name": "sample_rate",
+          "type": 3,
+          "required": true
+        },
+        "10": {
+          "name": "battery",
+          "type": 1,
+          "required": true
+        },
+        "11": {
+          "name": "charging",
+          "type": 1,
+          "required": true
+        },
+        "12": {
+          "name": "voice_enabled",
+          "type": 5,
+          "required": true
+        },
+        "13": {
+          "name": "delivering",
+          "type": 5,
+          "required": true
+        },
+        "14": {
+          "name": "stream_id",
+          "type": 3,
+          "required": true
+        },
+        "15": {
+          "name": "waiting_idle",
+          "type": 5,
+          "required": true
+        },
+        "16": {
+          "name": "reason",
+          "type": 2,
+          "required": true
+        },
+        "17": {
+          "name": "message",
+          "type": 6,
+          "required": false
+        },
+        "18": {
+          "name": "voice_interaction",
+          "type": 1,
+          "required": true
+        },
+        "19": {
+          "name": "max_capture_ms",
+          "type": 3,
+          "required": true
+        }
+      }
+    },
+    {
+      "opcode": 386,
+      "name": "OPERATION_EV",
+      "kind": 3,
+      "fields": {
+        "1": {
+          "name": "operation_id",
+          "type": 3,
+          "required": true
+        },
+        "2": {
+          "name": "state",
+          "type": 1,
+          "required": true
+        },
+        "3": {
+          "name": "result",
+          "type": 2,
+          "required": true
+        },
+        "4": {
+          "name": "peer_id",
+          "type": 3,
+          "required": false
+        },
+        "5": {
+          "name": "connection_id",
+          "type": 3,
+          "required": false
+        },
+        "6": {
+          "name": "uncertain",
+          "type": 5,
+          "required": false
+        }
+      }
+    },
+    {
+      "opcode": 384,
+      "name": "FIND_DONE_EV",
+      "kind": 3,
+      "fields": {
+        "1": {
+          "name": "search_id",
+          "type": 3,
+          "required": true
+        },
+        "2": {
+          "name": "reason",
+          "type": 1,
+          "required": true
+        }
+      }
+    },
+    {
+      "opcode": 385,
+      "name": "PAIR_PROMPT_EV",
+      "kind": 3,
+      "fields": {
+        "1": {
+          "name": "operation_id",
+          "type": 3,
+          "required": true
+        },
+        "2": {
+          "name": "prompt_id",
+          "type": 3,
+          "required": true
+        },
+        "3": {
+          "name": "method",
+          "type": 1,
+          "required": true
+        },
+        "4": {
+          "name": "number",
+          "type": 3,
+          "required": false
+        },
+        "5": {
+          "name": "remaining_ms",
+          "type": 3,
+          "required": true
+        }
+      }
+    },
+    {
+      "opcode": 896,
+      "name": "VOICE_STARTED_EV",
+      "kind": 3,
+      "fields": {
+        "1": {
+          "name": "stream_id",
+          "type": 3,
+          "required": true
+        },
+        "2": {
+          "name": "epoch",
+          "type": 3,
+          "required": true
+        },
+        "3": {
+          "name": "codec_id",
+          "type": 3,
+          "required": true
+        },
+        "4": {
+          "name": "codec_revision",
+          "type": 2,
+          "required": true
+        },
+        "5": {
+          "name": "sample_rate",
+          "type": 3,
+          "required": true
+        },
+        "6": {
+          "name": "channels",
+          "type": 1,
+          "required": true
+        },
+        "7": {
+          "name": "codec_config",
+          "type": 7,
+          "required": true
+        },
+        "8": {
+          "name": "max_unit_bytes",
+          "type": 3,
+          "required": true
+        },
+        "9": {
+          "name": "first_sample_index",
+          "type": 4,
+          "required": true
+        },
+        "10": {
+          "name": "captured_us",
+          "type": 4,
+          "required": true
+        },
+        "11": {
+          "name": "first_unit_seq",
+          "type": 3,
+          "required": true
+        }
+      }
+    },
+    {
+      "opcode": 898,
+      "name": "VOICE_ENDED_EV",
+      "kind": 3,
+      "fields": {
+        "1": {
+          "name": "stream_id",
+          "type": 3,
+          "required": true
+        },
+        "2": {
+          "name": "reason",
+          "type": 1,
+          "required": true
+        },
+        "3": {
+          "name": "delivered_encoded_bytes",
+          "type": 4,
+          "required": true
+        },
+        "4": {
+          "name": "ended_us",
+          "type": 4,
+          "required": true
+        },
+        "5": {
+          "name": "delivered_units",
+          "type": 3,
+          "required": true
+        },
+        "6": {
+          "name": "delivered_samples",
+          "type": 4,
+          "required": true
+        },
+        "7": {
+          "name": "final_epoch",
+          "type": 3,
+          "required": true
+        }
+      }
+    },
+    {
+      "opcode": 899,
+      "name": "VOICE_FORMAT_EV",
+      "kind": 3,
+      "fields": {
+        "1": {
+          "name": "stream_id",
+          "type": 3,
+          "required": true
+        },
+        "2": {
+          "name": "epoch",
+          "type": 3,
+          "required": true
+        },
+        "3": {
+          "name": "codec_id",
+          "type": 3,
+          "required": true
+        },
+        "4": {
+          "name": "codec_revision",
+          "type": 2,
+          "required": true
+        },
+        "5": {
+          "name": "sample_rate",
+          "type": 3,
+          "required": true
+        },
+        "6": {
+          "name": "channels",
+          "type": 1,
+          "required": true
+        },
+        "7": {
+          "name": "codec_config",
+          "type": 7,
+          "required": true
+        },
+        "8": {
+          "name": "max_unit_bytes",
+          "type": 3,
+          "required": true
+        },
+        "9": {
+          "name": "first_sample_index",
+          "type": 4,
+          "required": true
+        },
+        "10": {
+          "name": "captured_us",
+          "type": 4,
+          "required": true
+        },
+        "11": {
+          "name": "first_unit_seq",
+          "type": 3,
+          "required": true
+        }
+      }
+    },
+    {
+      "opcode": 640,
+      "name": "KEYS_STATE",
+      "kind": 3,
+      "binary": "keys_state"
+    },
+    {
+      "opcode": 897,
+      "name": "VOICE_DATA",
+      "kind": 4,
+      "binary": "voice_data"
+    }
+  ],
+  "lifecycle": {
+    "hello": "session=connection=0, tx_seq=request_id=1; fresh random 16-byte nonce echoed by response",
+    "sequence": "strict increment per direction; no zero or wrap",
+    "heartbeat_ms": 1000,
+    "session_timeout_ms": 5000,
+    "partial_frame_timeout_ms": 1000,
+    "max_pending": 4
+  },
+  "normative_document": "../../docs/wire-protocol.md"
+}

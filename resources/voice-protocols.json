@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "protocols": [
+    {
+      "family": 1,
+      "name": "atvv",
+      "priority": 2,
+      "services": ["1812", "ab5e0001-5a21-4f05-bc7d-af01f617b664"],
+      "evidenceServices": ["ab5e0001-5a21-4f05-bc7d-af01f617b664"],
+      "reports": [
+        {
+          "id": 1,
+          "type": 1,
+          "properties": 16
+        }
+      ],
+      "characteristics": [
+        {
+          "uuid": "ab5e0002-5a21-4f05-bc7d-af01f617b664",
+          "properties": 12
+        },
+        {
+          "uuid": "ab5e0003-5a21-4f05-bc7d-af01f617b664",
+          "properties": 16
+        },
+        {
+          "uuid": "ab5e0004-5a21-4f05-bc7d-af01f617b664",
+          "properties": 16
+        }
+      ],
+      "mtu": 123,
+      "driver": "atvv",
+      "driverApi": 1,
+      "sampleRate": 16000,
+      "defaultKeyConfirmation": "skip"
+    },
+    {
+      "family": 2,
+      "name": "hid-ico",
+      "priority": 2,
+      "services": ["1812"],
+      "evidenceReports": [252, 251, 248, 250],
+      "reports": [
+        {
+          "id": 1,
+          "type": 1,
+          "properties": 16
+        },
+        {
+          "id": 3,
+          "type": 1,
+          "properties": 16
+        },
+        {
+          "id": 252,
+          "type": 1,
+          "properties": 16
+        },
+        {
+          "id": 251,
+          "type": 2,
+          "properties": 8
+        },
+        {
+          "id": 248,
+          "type": 1,
+          "properties": 16
+        },
+        {
+          "id": 250,
+          "type": 2,
+          "properties": 8
+        },
+        {
+          "id": 249,
+          "type": 1,
+          "properties": 16
+        }
+      ],
+      "characteristics": [],
+      "mtu": 23,
+      "driver": "hid-ico",
+      "driverApi": 1,
+      "sampleRate": 16000,
+      "defaultKeyConfirmation": "required"
+    },
+    {
+      "family": 3,
+      "name": "hid-msbc",
+      "priority": 1,
+      "services": ["1812"],
+      "evidenceReports": [1, 4, 5, 6, 7, 8],
+      "reports": [
+        {
+          "id": 1,
+          "type": 1,
+          "properties": 16
+        },
+        {
+          "id": 4,
+          "type": 3,
+          "properties": 8
+        },
+        {
+          "id": 5,
+          "type": 3,
+          "properties": 16
+        },
+        {
+          "id": 6,
+          "type": 3,
+          "properties": 16
+        },
+        {
+          "id": 7,
+          "type": 3,
+          "properties": 16
+        },
+        {
+          "id": 8,
+          "type": 3,
+          "properties": 16
+        }
+      ],
+      "characteristics": [],
+      "mtu": 63,
+      "driver": "xiaomi-hid-msbc",
+      "driverApi": 1,
+      "sampleRate": 16000,
+      "defaultKeyConfirmation": "skip"
+    }
+  ]
+}

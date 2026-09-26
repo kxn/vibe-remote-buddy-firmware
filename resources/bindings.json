@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "kinds": [
+    {
+      "id": 0,
+      "name": "disabled",
+      "voiceOnly": false,
+      "zeroModifiers": true,
+      "min": 0,
+      "max": 0,
+      "modifierOnly": false,
+      "default": [0, 0, 0]
+    },
+    {
+      "id": 1,
+      "name": "keyboard",
+      "voiceOnly": false,
+      "zeroModifiers": false,
+      "min": 4,
+      "max": 223,
+      "modifierOnly": true,
+      "default": [1, 0, 40]
+    },
+    {
+      "id": 2,
+      "name": "consumer",
+      "voiceOnly": false,
+      "zeroModifiers": true,
+      "min": 0,
+      "max": 7,
+      "modifierOnly": false,
+      "default": [2, 0, 0]
+    },
+    {
+      "id": 3,
+      "name": "voice",
+      "voiceOnly": true,
+      "zeroModifiers": false,
+      "min": 4,
+      "max": 223,
+      "modifierOnly": true,
+      "default": [3, 64, 0]
+    },
+    {
+      "id": 4,
+      "name": "action",
+      "voiceOnly": false,
+      "zeroModifiers": true,
+      "min": 1,
+      "max": 65535,
+      "modifierOnly": false,
+      "default": [4, 0, 65535]
+    },
+    {
+      "id": 5,
+      "name": "voice-preset",
+      "voiceOnly": true,
+      "zeroModifiers": true,
+      "min": 1,
+      "max": 2,
+      "modifierOnly": false,
+      "default": [5, 0, 1]
+    },
+    {
+      "id": 6,
+      "name": "toggle-voice-mode",
+      "voiceOnly": false,
+      "zeroModifiers": true,
+      "min": 0,
+      "max": 0,
+      "modifierOnly": false,
+      "default": [6, 0, 0]
+    }
+  ],
+  "voicePresets": {
+    "doubao": {
+      "binding": [5, 0, 1],
+      "shortcut": [3, 64, 0],
+      "label": "豆包输入法"
+    },
+    "wechat": {
+      "binding": [5, 0, 2],
+      "shortcut": [3, 9, 0],
+      "label": "微信输入法"
+    },
+    "meeting": {
+      "binding": [3, 0, 44],
+      "shortcut": [3, 0, 44],
+      "label": "视频会议"
+    }
+  },
+  "appActions": [
+    {
+      "id": 65534,
+      "resource": "task-view",
+      "command": "task_view",
+      "label": "任务视图"
+    },
+    {
+      "id": 65535,
+      "resource": "window-picker",
+      "command": "window_picker",
+      "label": "窗口选择器"
+    }
+  ],
+  "media": [
+    "volume-up",
+    "volume-down",
+    "mute",
+    "play-pause",
+    "next",
+    "previous",
+    "stop",
+    "browser-home"
+  ]
+}
