@@ -41,13 +41,24 @@ void buddy_probe_voice_notify(uint16_t h, const uint8_t *data, unsigned len) {
   bool fc = h && h == pv_slot.adapter.unicom.fc && len == 20;
   bool ctl = h && h == pv_slot.adapter.atvv_ctl_handle;
   bool audio = h && h == pv_slot.adapter.atvv_audio_handle;
+  bool legacy_audio = false;
+  if(pv_active && pv_slot.adapter.legacy.selected) {
+    for(unsigned i=0;i<pv_slot.adapter.char_count;i++) {
+      const rc003_report_char_t *c=&pv_slot.adapter.chars[i];
+      if(c->value_handle!=h || !c->subscribed)continue;
+      if(c->report_id==5)ctl=true;
+      if(c->report_id>=6 && c->report_id<=8)audio=legacy_audio=true;
+    }
+  }
   /* Preserve negotiation and first audio headers without copying the stream. */
   if (pv_active && pv_armed && (fc || ctl || (audio && pv_audio_trace_count < 4))) {
     unsigned i = pv_trace_count++ % 64;
     pv_trace[i].time = now_ms();
     pv_trace[i].handle = h;
     pv_trace[i].length = len;
-    pv_trace[i].saved = fc ? 10 : (len < 16 ? len : 16);
+    /* Legacy audio needs only its two-byte transport header, no mSBC body. */
+    unsigned limit=legacy_audio?2:16;
+    pv_trace[i].saved = fc ? 10 : (len < limit ? len : limit);
     if (fc) {
       memcpy(pv_trace[i].bytes, data, 4);
       memcpy(pv_trace[i].bytes + 4, data + 14, 6);
@@ -187,9 +198,10 @@ uint16_t buddy_probe_voice_command(uint16_t op, const cJSON *q, cJSON *j,
       cJSON_AddNumberToObject(j, "samples", pv_samples);
 
       cJSON_AddNumberToObject(j, "buffered", pv_buffered);
-
-
-
+      /* Keep optional details off the near-full, 512-byte status response. */
+      cJSON_AddNumberToObject(j, "protocol_mode_length", pv_slot.adapter.protocol_mode_length==UINT16_MAX?-1:pv_slot.adapter.protocol_mode_length);
+      cJSON_AddNumberToObject(j, "protocol_mode_value", pv_slot.adapter.protocol_mode_value==UINT8_MAX?-1:pv_slot.adapter.protocol_mode_value);
+      cJSON_AddBoolToObject(j, "protocol_mode_unverified", pv_slot.adapter.protocol_mode_unverified);
       return 0;
     }
     uint32_t diagnostic;

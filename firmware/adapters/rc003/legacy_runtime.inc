@@ -25,6 +25,18 @@ static void legacy_key(rc003_adapter_t *a,bool down) {
 }
 static bool legacy_report_layout(rc003_adapter_t *a) {
     if(!protocol_reports(a,3))return false;
+    /* Every configured key must remain reachable, including optional
+     * consumer Report Reference 3. With an empty learning table, protocol
+     * rules still require the keyboard and all four voice notifications. */
+    for(unsigned k=0;k<a->variant.raw_count;k++) {
+        bool found=false;
+        for(unsigned i=0;i<a->char_count;i++) {
+            const rc003_report_char_t *c=&a->chars[i];
+            if(c->report_id==a->variant.raw_keys[k].report && c->report_type==1 &&
+               (c->properties&16) && c->subscribed)found=true;
+        }
+        if(!found)return false;
+    }
     for(unsigned i=0;i<a->char_count;i++)if(a->chars[i].report_id==4)a->legacy.control=a->chars[i].value_handle;
     return true;
 }

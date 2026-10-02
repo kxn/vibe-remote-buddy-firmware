@@ -1229,6 +1229,22 @@ uint16_t buddy_command(uint16_t op, const cJSON *q, cJSON *j) {
   if (op == BUDDY_STATS) {
     if (!buddy_u32(q, "index", &index))
       return RBP_STATUS_INVALID_ARGUMENT;
+    /* Enumeration evidence and the requested Globe level, without USB I/O.
+     * The desired report is a separate runtime snapshot, not an OS key ack. */
+    if (index == 80) { /* 16..79 are reserved for S3_HCI_PROBE link traces. */
+      buddy_host_probe_t probe;
+      buddy_host_os_t host = s3_host_probe_snapshot(&probe);
+      uint8_t desired[8];
+      s3_hid_desired(desired);
+      cJSON_AddNumberToObject(j, "host_os", host);
+      cJSON_AddNumberToObject(j, "strings", probe.strings);
+      cJSON_AddNumberToObject(j, "short2", probe.short2);
+      cJSON_AddNumberToObject(j, "short4", probe.short4);
+      cJSON_AddNumberToObject(j, "full255", probe.full255);
+      cJSON_AddBoolToObject(j, "frozen", probe.frozen);
+      cJSON_AddBoolToObject(j, "globe_requested", (desired[1] & 1) != 0);
+      return 0;
+    }
 #ifdef S3_CODEC_METRICS
     if (index == 15) {
       uint32_t m[STANDALONE_CODEC_METRICS_WORDS];
