@@ -6,10 +6,10 @@ static unsigned msbc_bad_frames;
 #include "s3_runtime.h"
 #include "esp_heap_caps.h"
 #include "faults.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #ifdef S3_CODEC_METRICS
 #include "freertos/task.h"
-#include "esp_timer.h"
 #endif
 #include "rbp_decoder.h"
 #include "standalone.h"
@@ -59,6 +59,7 @@ static uint8_t voice_shortcut[8];
 static uint32_t drain_started, empty_since;
 #define DRAIN_TIMEOUT_MS 5000u
 #define USB_TAIL_MS 100u
+#define MIC_OPEN_GRACE_MS 250u
 static void begin_drain(uint32_t now) {
   if (!draining) {
     draining = true;
@@ -427,6 +428,16 @@ void standalone_tick(uint32_t now) {
   portENTER_CRITICAL(&guard);
   unsigned owner = input.arbiter.owner;
   bool drain_timeout = draining && now - drain_started >= DRAIN_TIMEOUT_MS;
+  /* An IME may ignore the shortcut or close its microphone on physical key
+   * release. Once the remote has stopped, that PCM has no USB consumer. Give
+   * a late microphone open a short grace period, then release normally instead
+   * of holding the shortcut and rejecting new presses for five seconds.
+   * An open microphone still receives the entire tail through s3_pcm_read. */
+  if (draining && !source && !recording && count &&
+      now - drain_started >= MIC_OPEN_GRACE_MS) {
+    head = tail = count = 0;
+    audio_epoch++;
+  }
   if (draining && !source && !count && (ended || now - drain_started >= 1000)) {
     if (!empty_since)
       empty_since = now;
@@ -543,6 +554,7 @@ void s3_peer_disconnected(unsigned s, uint32_t now) {
   if (s >= BUDDY_SLOTS)
     return;
   portENTER_CRITICAL(&guard);
+  memset(&input.gesture[s], 0, sizeof input.gesture[s]);
   bool preserve = input.arbiter.owner == s && (source || count || draining);
   if (preserve) {
     source = false;
@@ -568,6 +580,7 @@ void s3_peer_link(unsigned s, uint32_t g) {
   portENTER_CRITICAL(&guard);
   stop_slots &= ~(1u << s);
   buddy_arbiter_link(&input.arbiter, s, g);
+  memset(&input.gesture[s], 0, sizeof input.gesture[s]);
   refresh_hid();
   portEXIT_CRITICAL(&guard);
 }
@@ -581,6 +594,7 @@ void s3_peer_voice_key(unsigned s, uint32_t g, bool down, uint32_t now) {
   if (s >= BUDDY_SLOTS)
     return;
   portENTER_CRITICAL(&guard);
+  if (down && input.arbiter.generation[s] == g) input.gesture[s].steps = 0;
   /* A failed capture's queued protocol STOP must be dispatched before this
    * same remote can acquire another capture. Never apply an old STOP to it. */
   if (down && (stop_slots & (1u << s)) && input.arbiter.generation[s] == g) {
@@ -614,7 +628,7 @@ void s3_peer_voice_key(unsigned s, uint32_t g, bool down, uint32_t now) {
       ended = 0;
     voice_down = down;
     if (down && !was) {
-      if (!voice_hold) buddy_voice_keyboard(buddy_input_voice_binding(&input, s), s3_host_os(), voice_shortcut);
+      if (!voice_hold) buddy_voice_keyboard_override(buddy_input_voice_binding(&input, s), s3_host_os(), &input.shortcuts, voice_shortcut);
       voice_hold = true;
       detached = false;
       blocked = false;
@@ -648,7 +662,7 @@ void s3_peer_voice(unsigned s, uint32_t g, const rbp_voice_evt_t *e,
       if (buddy_arbiter_voice(&input.arbiter, s, g, true)) {
         input.arbiter.down[s] = false;
         voice_down = false;
-        if (!voice_hold) buddy_voice_keyboard(buddy_input_voice_binding(&input, s), s3_host_os(), voice_shortcut);
+        if (!voice_hold) buddy_voice_keyboard_override(buddy_input_voice_binding(&input, s), s3_host_os(), &input.shortcuts, voice_shortcut);
         voice_hold = true;
         detached = draining = blocked = false;
         press_ms = now;
@@ -673,7 +687,8 @@ void s3_peer_voice(unsigned s, uint32_t g, const rbp_voice_evt_t *e,
 }
 uint64_t s3_peer_keys(unsigned s, uint32_t g, uint64_t bits) {
   portENTER_CRITICAL(&guard);
-  uint64_t actions = buddy_input_keys(&input, s, g, bits);
+  uint64_t actions = buddy_input_keys_observed(&input, s, g, bits, s3_host_session(),
+                                              (uint32_t)(esp_timer_get_time() / 1000));
   refresh_hid();
   portEXIT_CRITICAL(&guard);
   return actions;
@@ -708,6 +723,32 @@ void s3_mapping(unsigned s, const buddy_map_t *m) {
 void s3_management(bool active) {
   portENTER_CRITICAL(&guard);
   input.management = active;
+  portEXIT_CRITICAL(&guard);
+}
+void s3_shortcuts_load(const buddy_shortcuts_t *shortcuts) {
+  portENTER_CRITICAL(&guard);
+  input.shortcuts = *shortcuts;
+  input.shortcut_dirty = 0;
+  portEXIT_CRITICAL(&guard);
+}
+uint8_t s3_shortcuts_snapshot(buddy_shortcuts_t *out) {
+  portENTER_CRITICAL(&guard);
+  if (out) *out = input.shortcuts;
+  uint8_t dirty = input.shortcut_dirty;
+  portEXIT_CRITICAL(&guard);
+  return dirty;
+}
+bool s3_shortcuts_save_snapshot(uint32_t now, buddy_shortcuts_t *out, uint8_t *mask) {
+  portENTER_CRITICAL(&guard);
+  bool ready = buddy_input_shortcut_save_ready(&input, now);
+  if (ready) { *out = input.shortcuts; *mask = input.shortcut_dirty; }
+  portEXIT_CRITICAL(&guard);
+  return ready;
+}
+void s3_shortcuts_saved(unsigned platform, uint8_t value) {
+  if (platform >= BUDDY_SHORTCUT_PLATFORMS) return;
+  portENTER_CRITICAL(&guard);
+  if (input.shortcuts.value[platform] == value) input.shortcut_dirty &= ~(1u << platform);
   portEXIT_CRITICAL(&guard);
 }
 #endif

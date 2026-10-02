@@ -1,5 +1,5 @@
 /* Exercise the production host classifier, binding resolver and USB descriptor.
- * These checks cannot establish how macOS or Doubao handles a real Globe key. */
+ * These checks cannot establish how macOS or Doubao handles a real Fn key. */
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
@@ -35,6 +35,27 @@ static void host_detection(void) {
     string_request(&p, 4, 500);
     assert(p.strings == 5 && buddy_host_classify(&p, 800, true) == BUDDY_HOST_MACOS);
 
+    /* This Mac's real enumeration has 13 strings, six 2-byte headers and no
+     * 255-byte reads. The optional full-length probe must not gate shortcuts. */
+    buddy_host_reset(&p);
+    p.strings = 13; p.short2 = 6; p.last = 100;
+    assert(buddy_host_classify(&p, 399, true) == BUDDY_HOST_UNKNOWN);
+    assert(buddy_host_classify(&p, 400, false) == BUDDY_HOST_UNKNOWN);
+    assert(buddy_host_classify(&p, 400, true) == BUDDY_HOST_MACOS);
+    assert(p.frozen && !p.full255);
+
+    /* Headers alone, incomplete pairs and Windows-like short reads are not
+     * enough to recognize the additional Mac enumeration pattern. */
+    buddy_host_reset(&p);
+    p.strings = p.short2 = 6;
+    assert(buddy_host_classify(&p, 300, true) == BUDDY_HOST_OTHER);
+    p.strings = 5; p.short2 = 3;
+    assert(buddy_host_classify(&p, 300, true) == BUDDY_HOST_OTHER);
+    p.strings = 6; p.short4 = 1;
+    assert(buddy_host_classify(&p, 300, true) == BUDDY_HOST_OTHER);
+    p.short4 = 0;
+    assert(buddy_host_classify(&p, 300, true) == BUDDY_HOST_MACOS);
+
     /* USB reset / moving from Mac to Windows must discard the frozen result. */
     buddy_host_reset(&p);
     string_request(&p, 4, 0);
@@ -54,6 +75,14 @@ static void host_detection(void) {
     string_request(&p, 24, 303);
     string_request(&p, 4, 304);
     assert(buddy_host_classify(&p, 604, true) == BUDDY_HOST_OTHER);
+
+    buddy_host_reset(&p);
+    for (unsigned i = 0; i < 3; i++) string_request(&p, 255, i);
+    assert(buddy_host_classify(&p, 301, true) == BUDDY_HOST_UNKNOWN);
+    assert(buddy_host_classify(&p, 302, true) == BUDDY_HOST_LINUX && p.frozen);
+    buddy_host_reset(&p);
+    string_request(&p, 255, 0); string_request(&p, 255, 1); string_request(&p, 12, 2);
+    assert(buddy_host_classify(&p, 302, true) == BUDDY_HOST_OTHER);
 
     /* Enumeration quiet time also works across the millisecond wraparound. */
     buddy_host_reset(&p);
@@ -78,7 +107,7 @@ static void voice_bindings(void) {
     uint8_t out[8];
     buddy_voice_keyboard(doubao, BUDDY_HOST_MACOS, out);
     assert(memcmp(out, globe, sizeof out) == 0);
-    const buddy_host_os_t other[] = {BUDDY_HOST_WINDOWS, BUDDY_HOST_UNKNOWN, BUDDY_HOST_OTHER};
+    const buddy_host_os_t other[] = {BUDDY_HOST_WINDOWS, BUDDY_HOST_UNKNOWN, BUDDY_HOST_OTHER, BUDDY_HOST_LINUX};
     for (unsigned i = 0; i < sizeof other / sizeof *other; ++i) {
         buddy_voice_keyboard(doubao, other[i], out);
         assert(memcmp(out, right_alt, sizeof out) == 0);
@@ -108,9 +137,8 @@ static void report_layout(void) {
     const uint16_t media[] = {0xe9, 0xea, 0xe2, 0xcd, 0xb5, 0xb6, 0xb7, 0x223};
     for (unsigned i = 0; i < map.field_count; ++i) {
         const hogp_field_t *f = &map.fields[i];
-        assert(f->page != 0xff); /* No old Apple-private Fn for App to forward. */
-        if (f->report_id == 1 && f->page == 0x0c) {
-            assert(f->usage_min == 0x029d && f->usage_max == 0x029d);
+        if (f->report_id == 1 && f->page == 0x00ff) {
+            assert(f->usage_min == 0x03 && f->usage_max == 0x03);
             assert(f->offset == 8 && f->size == 1 && f->count == 1 && f->variable);
             ++globe;
         } else if (f->report_id == 1 && f->page == 7 && f->variable) {
@@ -134,6 +162,6 @@ int main(void) {
     host_detection();
     voice_bindings();
     report_layout();
-    puts("Host detection, voice bindings and USB Globe report layout passed.");
+    puts("Host detection, voice bindings and USB native Fn report layout passed.");
     return 0;
 }

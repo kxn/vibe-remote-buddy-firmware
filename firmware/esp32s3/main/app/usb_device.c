@@ -24,11 +24,12 @@
 static portMUX_TYPE host_guard = portMUX_INITIALIZER_UNLOCKED;
 static buddy_host_probe_t host_probe;
 static _Atomic unsigned host_snapshot;
-buddy_host_os_t s3_host_os(void) { return atomic_load(&host_snapshot); }
+uint32_t s3_host_session(void) { return atomic_load(&host_snapshot); }
+buddy_host_os_t s3_host_os(void) { return buddy_host_session_os(s3_host_session()); }
 buddy_host_os_t s3_host_probe_snapshot(buddy_host_probe_t *out) {
     portENTER_CRITICAL(&host_guard);
     *out = host_probe;
-    buddy_host_os_t host = atomic_load(&host_snapshot);
+    buddy_host_os_t host = s3_host_os();
     portEXIT_CRITICAL(&host_guard);
     return host;
 }
@@ -36,7 +37,10 @@ void __real_dcd_event_handler(dcd_event_t const *event, bool in_isr);
 void __wrap_dcd_event_handler(dcd_event_t const *event, bool in_isr) {
     if (event->event_id == DCD_EVENT_BUS_RESET || event->event_id == DCD_EVENT_UNPLUGGED || event->event_id == DCD_EVENT_SETUP_RECEIVED) {
         if(in_isr)portENTER_CRITICAL_ISR(&host_guard);else portENTER_CRITICAL(&host_guard);
-        if(event->event_id != DCD_EVENT_SETUP_RECEIVED) { buddy_host_reset(&host_probe); atomic_store(&host_snapshot,BUDDY_HOST_UNKNOWN); }
+        if(event->event_id != DCD_EVENT_SETUP_RECEIVED) {
+            buddy_host_reset(&host_probe);
+            atomic_store(&host_snapshot,(atomic_load(&host_snapshot)&~7u)+8u);
+        }
         else { tusb_control_request_t const *r=&event->setup_received;
             buddy_host_setup(&host_probe,r->bmRequestType,r->bRequest,r->wValue,r->wLength,(uint32_t)(esp_timer_get_time()/1000)); }
         if(in_isr)portEXIT_CRITICAL_ISR(&host_guard);else portEXIT_CRITICAL(&host_guard);
@@ -69,7 +73,9 @@ static const uint8_t config[]={
 static const tusb_desc_device_t device={
     .bLength=sizeof(tusb_desc_device_t),.bDescriptorType=TUSB_DESC_DEVICE,.bcdUSB=0x0200,
     .bDeviceClass=TUSB_CLASS_MISC,.bDeviceSubClass=MISC_SUBCLASS_COMMON,.bDeviceProtocol=MISC_PROTOCOL_IAD,
-    .bMaxPacketSize0=64,.idVendor=0xcafe,.idProduct=0x4016,.bcdDevice=0x0401,
+    /* Match macOS Wired Keyboard 2007 ANSI Map to enable native Fn (FF/03).
+     * The whole USB composite shares this identity, including CDC and UAC. */
+    .bMaxPacketSize0=64,.idVendor=0x05ac,.idProduct=0x0220,.bcdDevice=0x0402,
     .iManufacturer=1,.iProduct=2,.iSerialNumber=3,.bNumConfigurations=1
 };
 static char serial[17];
@@ -160,7 +166,7 @@ static void usb_task(void *arg) {
         uint32_t now=(uint32_t)(esp_timer_get_time()/1000);
         if(reboot_at&&(int32_t)(now-reboot_at)>=0)enter_bootloader();
         portENTER_CRITICAL(&host_guard);
-        atomic_store(&host_snapshot,buddy_host_classify(&host_probe,now,tud_mounted()));
+        atomic_store(&host_snapshot,(atomic_load(&host_snapshot)&~7u)|buddy_host_classify(&host_probe,now,tud_mounted()));
         portEXIT_CRITICAL(&host_guard);
         usb_ready_snapshot=tud_mounted()&&!tud_suspended();
 #ifndef S3_USB_QUALIFY
