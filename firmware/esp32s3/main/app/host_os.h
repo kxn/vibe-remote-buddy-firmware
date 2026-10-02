@@ -8,3 +8,5 @@ void buddy_host_setup(buddy_host_probe_t *p, uint8_t type, uint8_t request, uint
 buddy_host_os_t buddy_host_classify(buddy_host_probe_t *p, uint32_t now, bool configured);
 /* Atomic snapshot, updated only by the USB task. */
 buddy_host_os_t s3_host_os(void);
+/* Coherent read-only enumeration evidence; caller supplies a non-NULL output. */
+buddy_host_os_t s3_host_probe_snapshot(buddy_host_probe_t *out);

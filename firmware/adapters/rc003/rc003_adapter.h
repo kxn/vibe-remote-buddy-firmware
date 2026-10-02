@@ -63,6 +63,9 @@ struct rc003_adapter {
     uint32_t init_deadline_ms;
     uint16_t svc_start, svc_end;
     uint16_t protocol_mode_handle;
+    uint16_t protocol_mode_length; /* UINT16_MAX before the first response */
+    uint8_t protocol_mode_value;   /* UINT8_MAX when no byte was returned */
+    bool protocol_mode_unverified; /* empty read-back; requires measured legacy map */
     uint16_t hid_info_handle;
     uint8_t hid_flags;             /* HIDS: bit 0 remote wake, bit 1 normally connectable */
     bool hid_info_valid;

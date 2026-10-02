@@ -89,7 +89,7 @@ void buddy_voice_keyboard(buddy_binding_t b, buddy_host_os_t host, uint8_t out[8
   if (b.kind == BM_VOICE_PRESET) {
     b = buddy_voice_shortcut(b);
     if (b.kind != BM_VOICE) return;
-    if (host == BUDDY_HOST_MACOS) out[1] = 1; /* Apple Top Case Fn */
+    if (host == BUDDY_HOST_MACOS) out[1] = 1; /* Consumer 0x029d: macOS Globe/Fn */
     else { out[0] = b.modifiers; out[2] = b.value; }
   } else if (b.kind == BM_VOICE) { out[0] = b.modifiers; out[2] = b.value; }
 }

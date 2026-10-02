@@ -239,6 +239,16 @@ static uint8_t restore_database_step(const rc003_adapter_t *a) {
     return a->service_changed_cccd?ST_SUB_CHANGED:restore_mode_step(a);
 }
 
+/* Realtek Xiaomi 2717:32B8 returns a successful, empty Protocol Mode value.
+ * Write Report Mode explicitly, then admit an empty read-back only with this
+ * measured legacy HID/mSBC map. Report Reference/CCCD/MTU checks still apply.
+ * Resolve runs after the map read on first admission; restored maps are
+ * already validated by cache_import. Never infer this quirk from the name. */
+static bool legacy_empty_protocol_mode(const rc003_adapter_t *a) {
+    return a->variant.family==3 && a->variant.map_crc==UINT32_C(0x2c56d124) &&
+           a->map_len==147 && rbp_crc32c(a->map_buf,a->map_len)==a->variant.map_crc;
+}
+
 /* ---------------- sink callbacks for the ATVV engine ---------------- */
 
 static int atvv_submit(rc003_adapter_t *a, const uint8_t *data, uint16_t len) {
@@ -328,6 +338,8 @@ void rc003_adapter_init(rc003_adapter_t *a, const rbp_gatt_client_t *gatt, void 
                         rbp_server_t *server)
 {
     memset(a, 0, sizeof(*a));
+    a->protocol_mode_length=UINT16_MAX;
+    a->protocol_mode_value=UINT8_MAX;
     a->gatt = gatt;
     a->gatt_user = gatt_user;
     a->server = server;
@@ -395,6 +407,9 @@ void rc003_adapter_start(rc003_adapter_t *a, uint32_t now_ms)
 void rc003_adapter_start_bound(rc003_adapter_t *a, uint32_t now_ms, uint32_t peer_id)
 {
     if(peer_id && a->cache_valid && a->cache_peer_id==peer_id) {
+        a->protocol_mode_length=UINT16_MAX;
+        a->protocol_mode_value=UINT8_MAX;
+        a->protocol_mode_unverified=false;
         DT(DT_HID,DT_INFO,13,peer_id,a->service_changed_handle,a->char_count,now_ms);
         a->restoring=true;a->now_ms=now_ms;a->init_deadline_ms=now_ms+INIT_TOTAL_TIMEOUT_MS;
         rbp_server_set_profile(a->server,a->unicom.selected?&RBP_PROFILE_UNICOM:
@@ -575,7 +590,11 @@ static void begin_next(rc003_adapter_t *a, uint32_t now_ms)
     }
     case ST_SUBSCRIBE_REPORT: {
         rc003_report_char_t *c = &a->chars[a->cur_char];
-        bool mapped=a->unicom.selected;
+        /* Legacy firmware advertises consumer input F1 in its map but
+         * exposes Report Reference 3. Its learned raw table decodes 1/3;
+         * subscribe those actual inputs even when absent from the map. */
+        bool mapped=a->unicom.selected || (a->legacy.selected &&
+                    (c->report_id==1 || c->report_id==3));
         for(unsigned i=0;i<a->map.input_count;i++)if(a->map.inputs[i].report_id==c->report_id)mapped=true;
         bool legacy_feature=a->legacy.selected && c->report_type==3 && c->report_id>=5 && c->report_id<=8;
         if (!c->cccd_handle || (!legacy_feature && (c->report_type!=1 || !mapped))) {
@@ -596,13 +615,18 @@ static void begin_next(rc003_adapter_t *a, uint32_t now_ms)
     }
     case ST_FIND_BAT_SVC:
         if(a->unicom.selected && !unicom_reports(a)){unicom_bad(a,"Unicom report references");return;}
+        if(a->legacy.selected && !legacy_report_layout(a)) {
+            fail_initialization(a,"Legacy HID report subscriptions");return;
+        }
         for(unsigned i=0;i<a->map.input_count;i++) {
             /* Only decode-reachable inputs must be subscribed. Unicom keys
              * come from the bound model's raw table (or the measured 1/3
              * table); the XFRCB22 declares its FB command report as input
              * while exposing FB output-only, and the air mouse is
              * deliberately unmapped, so undecoded inputs never fail here. */
-            bool needed=!a->unicom.selected;
+            /* Legacy input requirements come from Report References and
+             * the raw key table above, never the phantom F1 map entry. */
+            bool needed=!a->unicom.selected && !a->legacy.selected;
             if(a->unicom.selected) {
                 if(a->variant.raw_count) {
                     for(unsigned k=0;k<a->variant.raw_count;k++)
@@ -877,6 +901,23 @@ void rc003_adapter_on_gatt(rc003_adapter_t *a, const rbp_gatt_evt_t *evt)
 
     case ST_READ_PROTOCOL_MODE:case ST_VERIFY_PROTOCOL_MODE:
         if(evt->type==RBP_GATT_EVT_READ_RSP) {
+            a->protocol_mode_length=evt->len;
+            a->protocol_mode_value=evt->len && evt->value?evt->value[0]:UINT8_MAX;
+            if(!evt->len) {
+                if(a->state==ST_READ_PROTOCOL_MODE) {
+                    start_op(a,ST_SET_PROTOCOL_MODE,a->now_ms);
+                } else {
+                    a->protocol_mode_unverified=true;
+                    if(a->restoring && !legacy_empty_protocol_mode(a)) {
+                        fail_initialization(a,"protocol mode empty");return;
+                    }
+                    /* Fresh discovery must validate the map before any report
+                     * subscriptions; do not publish readiness on this result. */
+                    start_op(a,a->restoring?restore_profile_step(a):ST_FIND_MAP_CHAR,a->now_ms);
+                }
+                begin_next(a,a->now_ms);
+                return;
+            }
             /* BlueZ reads before writing. Verify a needed mode change as
              * WriteNoRsp SUCCESS only means accepted by the local stack. */
             if(evt->len!=1 || !evt->value || evt->value[0]>1 ||
@@ -972,6 +1013,9 @@ void rc003_adapter_on_gatt(rc003_adapter_t *a, const rbp_gatt_evt_t *evt)
                 if(a->variant.resolve && !a->variant.resolve(a,rbp_crc32c(a->map_buf,a->map_len))){fail_initialization(a,"model fingerprint unknown or ambiguous; select model");return;}
                 bool declared=a->variant.map_crc && rbp_crc32c(a->map_buf,a->map_len)==a->variant.map_crc;
                 if(a->variant.map_crc&&!declared){fail_initialization(a,"model report map mismatch");return;}
+                if(a->protocol_mode_unverified && !legacy_empty_protocol_mode(a)) {
+                    fail_initialization(a,"protocol mode empty");return;
+                }
                 a->legacy.selected=declared && a->variant.family==3;
                 a->unicom.selected=(declared&&a->variant.family==2)||(a->map_len==sizeof unicom_map && !memcmp(a->map_buf,unicom_map,sizeof unicom_map));
                 if(a->variant.family && (a->legacy.selected?3:a->unicom.selected?2:1)!=a->variant.family){fail_initialization(a,"model protocol mismatch");return;}

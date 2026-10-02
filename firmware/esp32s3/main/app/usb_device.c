@@ -15,6 +15,7 @@
 #include "tinyusb.h"
 #include "device/dcd.h"
 #include "host_os.h"
+#include "usb_hid_report.h"
 #ifndef S3_USB_QUALIFY
 #include "s3_runtime.h"
 #include "standalone.h"
@@ -24,6 +25,13 @@ static portMUX_TYPE host_guard = portMUX_INITIALIZER_UNLOCKED;
 static buddy_host_probe_t host_probe;
 static _Atomic unsigned host_snapshot;
 buddy_host_os_t s3_host_os(void) { return atomic_load(&host_snapshot); }
+buddy_host_os_t s3_host_probe_snapshot(buddy_host_probe_t *out) {
+    portENTER_CRITICAL(&host_guard);
+    *out = host_probe;
+    buddy_host_os_t host = atomic_load(&host_snapshot);
+    portEXIT_CRITICAL(&host_guard);
+    return host;
+}
 void __real_dcd_event_handler(dcd_event_t const *event, bool in_isr);
 void __wrap_dcd_event_handler(dcd_event_t const *event, bool in_isr) {
     if (event->event_id == DCD_EVENT_BUS_RESET || event->event_id == DCD_EVENT_UNPLUGGED || event->event_id == DCD_EVENT_SETUP_RECEIVED) {
@@ -50,33 +58,23 @@ static uint16_t sent_consumer,acked_consumer;
 static bool recording;
 static uint8_t mute[2];
 static int16_t volume[2];
-static const uint8_t reports[]={/* 8-byte keyboard: modifier, Fn bit + padding, six usages. */
- 0x05,0x01,0x09,0x06,0xa1,0x01,0x85,0x01,
- 0x05,0x07,0x19,0xe0,0x29,0xe7,0x15,0,0x25,1,0x75,1,0x95,8,0x81,2,
- 0x05,0xff,0x09,0x03,0x95,1,0x81,2,0x75,7,0x95,1,0x81,3,
- 0x05,0x07,0x19,0,0x29,0xdf,0x15,0,0x26,0xdf,0,0x75,8,0x95,6,0x81,0,
- 0x05,0x08,0x19,1,0x29,5,0x15,0,0x25,1,0x75,1,0x95,5,0x91,2,
- 0x75,3,0x95,1,0x91,3,0xc0,0x05,0x0c,0x09,0x01,0xa1,0x01,0x85,0x02,
- 0x15,0x00,0x25,0x01,0x75,0x01,0x95,0x08,
- 0x09,0xe9,0x09,0xea,0x09,0xe2,0x09,0xcd,0x09,0xb5,0x09,0xb6,0x09,0xb7,0x0a,0x23,0x02,0x81,0x02,
- 0x75,0x08,0x95,0x01,0x81,0x03,0xc0};
 enum {CDC=0,CDC_DATA,HID,AUDIO,AUDIO_STREAM,ITFS};
 #define CONFIG_LEN (TUD_CONFIG_DESC_LEN+TUD_CDC_DESC_LEN+TUD_HID_DESC_LEN+TUD_AUDIO20_MIC_ONE_CH_DESC_LEN)
 static const uint8_t config[]={
     TUD_CONFIG_DESCRIPTOR(1,ITFS,0,CONFIG_LEN,0,100),
     TUD_CDC_DESCRIPTOR(CDC,4,0x81,8,0x02,0x82,64),
-    TUD_HID_DESCRIPTOR(HID,5,HID_ITF_PROTOCOL_NONE,sizeof reports,0x83,16,1),
+    TUD_HID_DESCRIPTOR(HID,5,HID_ITF_PROTOCOL_NONE,sizeof buddy_hid_report_descriptor,0x83,16,1),
     TUD_AUDIO20_MIC_ONE_CH_DESCRIPTOR(AUDIO,6,2,16,0x84,34)
 };
 static const tusb_desc_device_t device={
     .bLength=sizeof(tusb_desc_device_t),.bDescriptorType=TUSB_DESC_DEVICE,.bcdUSB=0x0200,
     .bDeviceClass=TUSB_CLASS_MISC,.bDeviceSubClass=MISC_SUBCLASS_COMMON,.bDeviceProtocol=MISC_PROTOCOL_IAD,
-    .bMaxPacketSize0=64,.idVendor=0xcafe,.idProduct=0x4016,.bcdDevice=0x0400,
+    .bMaxPacketSize0=64,.idVendor=0xcafe,.idProduct=0x4016,.bcdDevice=0x0401,
     .iManufacturer=1,.iProduct=2,.iSerialNumber=3,.bNumConfigurations=1
 };
 static char serial[17];
 static const char *strings[]={"\x09\x04","Remote Bridge","Remote USB S3",serial,"Management","Keyboard","Remote microphone"};
-const uint8_t *tud_hid_descriptor_report_cb(uint8_t instance) {(void)instance;return reports;}
+const uint8_t *tud_hid_descriptor_report_cb(uint8_t instance) {(void)instance;return buddy_hid_report_descriptor;}
 uint16_t tud_hid_get_report_cb(uint8_t instance,uint8_t id,hid_report_type_t type,uint8_t *buf,uint16_t len) {
     (void)instance;if(type!=HID_REPORT_TYPE_INPUT)return 0;
     if(id==1){if(len>8)len=8;memcpy(buf,acked_report,len);return len;}
