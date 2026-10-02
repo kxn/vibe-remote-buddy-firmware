@@ -7,6 +7,7 @@ set(SOURCES
     "app/main.c"
     "app/usb_device.c"
     "app/host_os.c"
+    "app/buddy_power.c"
 )
 if(NOT S3_USB_QUALIFY)
     list(APPEND SOURCES
@@ -48,7 +49,7 @@ idf_component_register(SRCS ${SOURCES}
         "${ROOT}/protocol/include"
         "${ROOT}/firmware/codecs"
         "${ROOT}/firmware/codecs/ico_cleanroom"
-    REQUIRES esp_tinyusb esp_timer esp_psram usb bt nvs_flash json app_update esp_app_format spi_flash mbedtls bootloader_support)
+    REQUIRES esp_tinyusb esp_timer esp_psram esp_pm esp_driver_tsens usb bt nvs_flash json app_update esp_app_format spi_flash mbedtls bootloader_support)
 if(NOT CMAKE_SCRIPT_MODE_FILE AND NOT S3_USB_QUALIFY)
     set(ICO_TABLE_DIR "${CMAKE_BINARY_DIR}/generated/ico_cleanroom")
     find_package(Python3 REQUIRED COMPONENTS Interpreter)

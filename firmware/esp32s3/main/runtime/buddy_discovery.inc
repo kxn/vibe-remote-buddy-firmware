@@ -41,11 +41,21 @@ static void scan_start(bool manual, uint32_t duration) {
   }
   privacy_repair_pending=false;
 
+  /* Background auto-pair/reconnect still receives names and directed adverts,
+   * but only listens 10 ms per 100 ms. Explicit discovery keeps 20/30 ms.
+   * Do not filter duplicates: a sleeping/busy peer may need a later retry. */
+  bool foreground = manual_scan || buddy_probe_active();
   struct ble_gap_disc_params p = {
-      .itvl = 48, .window = 32, .passive = 0, .filter_duplicates = 0};
+      .itvl = foreground ? 48 : 160, .window = foreground ? 32 : 16,
+      .passive = 0, .filter_duplicates = 0};
   int rc = ble_gap_disc(own_address, duration, &p, gap, (void *)(uintptr_t)++scan_generation);
   fault(255, 7, rc);
   scanning = !rc;
+  if (scanning) {
+    scan_interval = p.itvl;
+    scan_window = p.window;
+    scan_foreground = foreground;
+  }
   next_scan = now_ms() + 1000;
 }
 static bool valid_name(char *out, const uint8_t *p, unsigned n) {

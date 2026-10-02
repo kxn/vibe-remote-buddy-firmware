@@ -17,12 +17,21 @@ RELEASE_CONFIG = {
     "CONFIG_LOG_DEFAULT_LEVEL_NONE": "y",
     "CONFIG_BOOTLOADER_LOG_LEVEL_NONE": "y",
     "CONFIG_COMPILER_OPTIMIZATION_SIZE": "y",
+    "CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160": "y",
+    "CONFIG_FREERTOS_HZ": "1000",
+    "CONFIG_PM_ENABLE": "y",
+    "CONFIG_PM_DFS_INIT_AUTO": "n",
+    "CONFIG_BT_CTRL_MODEM_SLEEP": "y",
+    "CONFIG_BT_CTRL_MODEM_SLEEP_MODE_1": "y",
+    "CONFIG_BT_CTRL_LPCLK_SEL_MAIN_XTAL": "y",
 }
 RELEASE_CHOICES = (
     "CONFIG_ESP_CONSOLE_SECONDARY_",
     "CONFIG_LOG_DEFAULT_LEVEL_",
     "CONFIG_BOOTLOADER_LOG_LEVEL_",
     "CONFIG_COMPILER_OPTIMIZATION_",
+    "CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ",
+    "CONFIG_BT_CTRL_LPCLK_SEL_",
 )
 
 
@@ -37,13 +46,17 @@ def pin_release_config(path: Path) -> None:
     lines = [line for line in path.read_text().splitlines()
              if not any(line.startswith(prefix) or line.startswith("# " + prefix)
                         for prefix in RELEASE_CHOICES)
-             and line.split("=", 1)[0] not in RELEASE_CONFIG]
+             and line.removeprefix("# ").removesuffix(" is not set").split("=", 1)[0]
+             not in RELEASE_CONFIG]
     path.write_text("\n".join(lines + [f"{k}={v}" for k, v in RELEASE_CONFIG.items()]) + "\n")
 
 
 def verify_release_config(path: Path) -> None:
     values = dict(line.split("=", 1) for line in path.read_text().splitlines()
                   if line.startswith("CONFIG_") and "=" in line)
+    for line in path.read_text().splitlines():
+        if line.startswith("# CONFIG_") and line.endswith(" is not set"):
+            values[line[2:-11]] = "n"
     wrong = [k for k, v in RELEASE_CONFIG.items() if values.get(k) != v]
     wrong += [k for k in ("CONFIG_LOG_DEFAULT_LEVEL", "CONFIG_BOOTLOADER_LOG_LEVEL")
               if values.get(k) != "0"]

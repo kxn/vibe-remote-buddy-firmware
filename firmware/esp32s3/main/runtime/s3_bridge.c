@@ -4,6 +4,7 @@
  * USB accesses only copied buffers/snapshots in s3_runtime, never a slot. */
 #include "buddy_management.h"
 #include "buddy_probe.h"
+#include "buddy_power.h"
 #include "esp_heap_caps.h"
 #include "esp_random.h"
 #include "esp_timer.h"
@@ -107,6 +108,10 @@ static struct {
 static uint32_t next_candidate, scan_epoch, scan_until, serial_epoch;
 static uint8_t own_address;
 static bool synced, scanning, manual_scan, privacy_repair_pending;
+/* Actual radio parameters, in BLE scan units of 625 us; meaningful if scanning. */
+static uint16_t scan_interval, scan_window;
+static bool scan_foreground;
+static uint32_t fast_pumps, idle_pumps;
 static bool sync_restore_pending;
 static uint32_t sync_retry;
 static void sync_cb(void);
@@ -553,8 +558,9 @@ static void schedule(uint32_t now) {
   if (buddy_probe_active()) {
     if (standalone_busy())
       stop_scan();
-    if (buddy_probe_scanning() && !standalone_busy() && !scanning &&
-        (int32_t)(now - next_scan) >= 0)
+    if (buddy_probe_scanning() && !standalone_busy() &&
+        ((!scanning && (int32_t)(now - next_scan) >= 0) ||
+         (scanning && !scan_foreground)))
       scan_start(false, 30000);
     return;
   }
@@ -617,6 +623,20 @@ static void schedule(uint32_t now) {
       scan_start(false, 1500);
   }
 }
+static void rearm_pump(void) {
+  /* BLE notifications run independently of this maintenance timer. Keep the
+   * old cadence for capture/drain, GATT setup, management, and flash work. */
+  bool fast = standalone_busy() || buddy_management_active() || buddy_probe_active() ||
+      buddy_update_busy() || buddy_catalog_store_busy() || operation.pending ||
+      connecting_slot >= 0;
+  for (unsigned i = 0; i < SLOTS && !fast; i++) {
+    const slot_t *s = &slots[i];
+    fast = s->connecting || s->pairing || s->commit_pending ||
+        (s->conn != NONE && !s->adapter.ready);
+  }
+  if (fast) fast_pumps++; else idle_pumps++;
+  ble_npl_callout_reset(&timer, ble_npl_time_ms_to_ticks32(fast ? 2 : 20));
+}
 static void pump(struct ble_npl_event *event) {
   (void)event;
   uint32_t now = now_ms();
@@ -668,7 +688,7 @@ static void pump(struct ble_npl_event *event) {
         slots[i].failed = true;
         terminate(&slots[i]);
       }
-    ble_npl_callout_reset(&timer, ble_npl_time_ms_to_ticks32(2));
+    rearm_pump();
     return;
   }
   standalone_tick(now);
@@ -718,7 +738,7 @@ static void pump(struct ble_npl_event *event) {
     manual_scan = false;
   }
   schedule(now);
-  ble_npl_callout_reset(&timer, ble_npl_time_ms_to_ticks32(2));
+  rearm_pump();
 }
 static void sync_cb(void) {
   synced = false;
@@ -1109,7 +1129,7 @@ uint16_t buddy_command(uint16_t op, const cJSON *q, cJSON *j) {
     }
     manual_scan = true;
     scan_until = now_ms() + index;
-    if (!scanning) scan_start(false, index);
+    if (!scanning || !scan_foreground) scan_start(false, index);
     cJSON_AddNumberToObject(j, "scan_epoch", scan_epoch);
     return scanning ? RBP_STATUS_OK : RBP_STATUS_DEVICE_ERROR;
   }
@@ -1229,6 +1249,18 @@ uint16_t buddy_command(uint16_t op, const cJSON *q, cJSON *j) {
   if (op == BUDDY_STATS) {
     if (!buddy_u32(q, "index", &index))
       return RBP_STATUS_INVALID_ARGUMENT;
+    if (index == 81) {
+      buddy_power_stats(j);
+      cJSON_AddNumberToObject(j, "uptime_ms", now_ms());
+      cJSON_AddBoolToObject(j, "scanning", scanning);
+      cJSON_AddBoolToObject(j, "scan_foreground", scanning && scan_foreground);
+      cJSON_AddNumberToObject(j, "scan_interval_us", scanning ? scan_interval * 625u : 0);
+      cJSON_AddNumberToObject(j, "scan_window_us", scanning ? scan_window * 625u : 0);
+      cJSON_AddNumberToObject(j, "fast_pumps", fast_pumps);
+      cJSON_AddNumberToObject(j, "idle_pumps", idle_pumps);
+      cJSON_AddBoolToObject(j, "voice_busy", standalone_busy());
+      return 0;
+    }
     /* Enumeration evidence and the requested Globe level, without USB I/O.
      * The desired report is a separate runtime snapshot, not an OS key ack. */
     if (index == 80) { /* 16..79 are reserved for S3_HCI_PROBE link traces. */
