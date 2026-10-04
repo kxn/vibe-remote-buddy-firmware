@@ -31,6 +31,11 @@ void s3_management(bool active);
 unsigned s3_voice_owner(void);
 uint8_t s3_take_stops(void);
 bool s3_peer_rejected(unsigned slot);
+void s3_shortcuts_load(const buddy_shortcuts_t *shortcuts);
+/* Return pending platform mask; optional output receives the effective settings. */
+uint8_t s3_shortcuts_snapshot(buddy_shortcuts_t *out);
+bool s3_shortcuts_save_snapshot(uint32_t now, buddy_shortcuts_t *out, uint8_t *mask);
+void s3_shortcuts_saved(unsigned platform, uint8_t value);
 #endif
 
 void s3_probe_audio_reset(void);

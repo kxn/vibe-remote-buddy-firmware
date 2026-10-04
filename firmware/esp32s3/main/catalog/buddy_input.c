@@ -89,7 +89,46 @@ void buddy_voice_keyboard(buddy_binding_t b, buddy_host_os_t host, uint8_t out[8
   if (b.kind == BM_VOICE_PRESET) {
     b = buddy_voice_shortcut(b);
     if (b.kind != BM_VOICE) return;
-    if (host == BUDDY_HOST_MACOS) out[1] = 1; /* Consumer 0x029d: macOS Globe/Fn */
+    if (host == BUDDY_HOST_MACOS) out[1] = 1; /* Apple TopCase 0x00ff/0x03: native Fn */
     else { out[0] = b.modifiers; out[2] = b.value; }
   } else if (b.kind == BM_VOICE) { out[0] = b.modifiers; out[2] = b.value; }
+}
+
+void buddy_voice_keyboard_override(buddy_binding_t b, buddy_host_os_t host,
+                                  const buddy_shortcuts_t *shortcuts, uint8_t out[8]) {
+  buddy_voice_keyboard(b, host, out);
+  int platform = buddy_shortcut_platform(host);
+  if (platform < 0 || !buddy_binding_valid(RBP_KEY_VOICE, b)) return;
+  uint8_t mode = shortcuts->value[platform];
+  if (!mode || !buddy_shortcut_valid(host, mode)) return;
+  memset(out, 0, 8);
+  switch (mode) {
+  case BUDDY_SHORTCUT_RALT: out[0] = 0x40; break;
+  case BUDDY_SHORTCUT_RCTRL: out[0] = 0x10; break;
+  case BUDDY_SHORTCUT_RSHIFT: out[0] = 0x20; break;
+  case BUDDY_SHORTCUT_FN: out[1] = 1; break;
+  }
+}
+
+uint64_t buddy_input_keys_observed(buddy_input_t *i, unsigned s, uint32_t g,
+                                 uint64_t bits, uint32_t session, uint32_t now) {
+  if (s >= BUDDY_SLOTS || !g || g != i->arbiter.generation[s]) return 0;
+  if (bits != i->arbiter.keys[s]) i->shortcut_activity = now;
+  uint64_t actions = buddy_input_keys(i, s, g, bits);
+  uint8_t mode = buddy_shortcut_observe(&i->gesture[s], g, session, bits, now);
+  /* An active voice capture is not a three-key setup sequence. */
+  if (i->arbiter.owner != BUDDY_NO_OWNER) { i->gesture[s].steps = 0; return actions; }
+  int platform = buddy_shortcut_platform(buddy_host_session_os(session));
+  if (mode && platform >= 0 && mode != i->shortcuts.value[platform]) {
+    i->shortcuts.value[platform] = mode;
+    i->shortcut_dirty |= 1u << platform;
+  }
+  return actions;
+}
+
+bool buddy_input_shortcut_save_ready(const buddy_input_t *i, uint32_t now) {
+  if (!i->shortcut_dirty || i->arbiter.owner != BUDDY_NO_OWNER ||
+      (uint32_t)(now - i->shortcut_activity) < BUDDY_SHORTCUT_SAVE_QUIET_MS) return false;
+  for (unsigned s = 0; s < BUDDY_SLOTS; s++) if (i->arbiter.keys[s]) return false;
+  return true;
 }

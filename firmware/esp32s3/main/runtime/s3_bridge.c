@@ -5,6 +5,7 @@
 #include "buddy_management.h"
 #include "buddy_probe.h"
 #include "buddy_power.h"
+#include "buddy_shortcut_store.h"
 #include "esp_heap_caps.h"
 #include "esp_random.h"
 #include "esp_timer.h"
@@ -81,6 +82,8 @@ static bool diagnostic_held(unsigned slot, uint32_t now) {
 /* BLE-task transaction scratch; never published until persist succeeds. */
 static record_t transaction_record;
 static nvs_handle_t storage;
+static buddy_shortcut_store_t shortcut_store;
+static uint32_t shortcut_retry;
 static buddy_model_t *models;
 static uint32_t model_crc[BUDDY_MODELS];
 static rbp_device_profile_t model_profiles[BUDDY_MODELS];
@@ -637,6 +640,20 @@ static void rearm_pump(void) {
   if (fast) fast_pumps++; else idle_pumps++;
   ble_npl_callout_reset(&timer, ble_npl_time_ms_to_ticks32(fast ? 2 : 20));
 }
+static void save_shortcuts(uint32_t now) {
+  if (standalone_busy() || buddy_probe_active() || buddy_update_busy() ||
+      buddy_catalog_store_busy() || operation.pending || connecting_slot >= 0 ||
+      (shortcut_retry && (int32_t)(now - shortcut_retry) < 0)) return;
+  buddy_shortcuts_t snapshot;
+  uint8_t mask;
+  if (!s3_shortcuts_save_snapshot(now, &snapshot, &mask)) return;
+  shortcut_retry = 0;
+  for (unsigned i = 0; i < BUDDY_SHORTCUT_PLATFORMS; i++) if (mask & (1u << i)) {
+    esp_err_t rc = buddy_shortcut_store_save(&shortcut_store, i, snapshot.value[i]);
+    if (rc) { fault(255, 46, rc); shortcut_retry = now + 5000; return; }
+    s3_shortcuts_saved(i, snapshot.value[i]);
+  }
+}
 static void pump(struct ble_npl_event *event) {
   (void)event;
   uint32_t now = now_ms();
@@ -733,6 +750,7 @@ static void pump(struct ble_npl_event *event) {
         s->cache_checked = true;
     }
   }
+  save_shortcuts(now);
   if (manual_scan && (int32_t)(now - scan_until) >= 0) {
     stop_scan();
     manual_scan = false;
@@ -816,6 +834,9 @@ static void host_task(void *arg) {
 void s3_bridge_start(void) {
   ESP_ERROR_CHECK(nvs_flash_init());
   ESP_ERROR_CHECK(nvs_open("remote-s3", NVS_READWRITE, &storage));
+  buddy_shortcuts_t shortcuts;
+  fault(255, 45, buddy_shortcut_store_load(&shortcut_store, storage, &shortcuts));
+  s3_shortcuts_load(&shortcuts);
   buddy_management_init();
   buddy_catalog_store_init();
   models_bootstrap();
@@ -996,7 +1017,7 @@ uint16_t buddy_command(uint16_t op, const cJSON *q, cJSON *j) {
   if (op >= BUDDY_UPDATE_STATUS && op <= BUDDY_UPDATE_ABORT) {
     if (op == BUDDY_UPDATE_BEGIN &&
         (buddy_catalog_store_busy() || buddy_probe_active() || standalone_busy() || operation.pending ||
-         pairing_busy()))
+         pairing_busy() || s3_shortcuts_snapshot(NULL)))
       return RBP_STATUS_BUSY;
     return buddy_update_command(op, q, j, now_ms());
   }
@@ -1249,6 +1270,21 @@ uint16_t buddy_command(uint16_t op, const cJSON *q, cJSON *j) {
   if (op == BUDDY_STATS) {
     if (!buddy_u32(q, "index", &index))
       return RBP_STATUS_INVALID_ARGUMENT;
+    if (index == 82) {
+      buddy_shortcuts_t settings;
+      uint8_t pending = s3_shortcuts_snapshot(&settings);
+      buddy_host_os_t host = s3_host_os();
+      int platform = buddy_shortcut_platform(host);
+      cJSON_AddNumberToObject(j, "host_os", host);
+      cJSON_AddNumberToObject(j, "windows", settings.value[0]);
+      cJSON_AddNumberToObject(j, "macos", settings.value[1]);
+      cJSON_AddNumberToObject(j, "linux", settings.value[2]);
+      cJSON_AddNumberToObject(j, "current", platform < 0 ? 0 : settings.value[platform]);
+      cJSON_AddNumberToObject(j, "pending", pending);
+      cJSON_AddNumberToObject(j, "storage_error", shortcut_store.error);
+      cJSON_AddNumberToObject(j, "commits", shortcut_store.commits);
+      return 0;
+    }
     if (index == 81) {
       buddy_power_stats(j);
       cJSON_AddNumberToObject(j, "uptime_ms", now_ms());
